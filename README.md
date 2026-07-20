@@ -105,7 +105,7 @@ filter before applying when selections across the entire list should be used.
 
 Use **Auto-detect types** in the sidebar to repeat the review for the current
 CSV. The **Clear all** action in Transaction types empties the configuration
-draft; choose **Save configuration** to make that change permanent.
+and saves that change immediately after confirmation.
 
 ### Interface size
 

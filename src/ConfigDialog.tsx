@@ -114,17 +114,31 @@ export default function ConfigDialog({
     setSelectedId(next[Math.min(index, next.length - 1)]?.id ?? "");
   }
 
-  function clearDefinitions() {
+  async function clearDefinitions() {
     if (
       !window.confirm(
-        "Clear every transaction type from this draft? The change is not permanent until you save the configuration.",
+        "Clear and save every transaction type now? This immediately replaces the saved configuration with an empty one.",
       )
     ) {
       return;
     }
-    setDraft((current) => ({ ...current, transactionTypes: [] }));
-    setSelectedId("");
-    setMessage("All transaction types cleared from this draft. Save to keep the change.");
+    const cleared = { ...draft, transactionTypes: [] };
+    setBusy(true);
+    setMessage(null);
+    try {
+      await onSave(cleared);
+      setDraft(cleared);
+      setSelectedId("");
+      setMessage("All transaction types cleared and saved.");
+    } catch (cause) {
+      setMessage(
+        typeof cause === "string"
+          ? cause
+          : "Could not clear the saved configuration.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveDraft() {

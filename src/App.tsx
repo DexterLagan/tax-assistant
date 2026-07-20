@@ -799,6 +799,7 @@ export default function App() {
         open={pendingImport !== null}
         fileName={pendingImport?.fileName ?? ""}
         detections={detections}
+        existingTypeCount={envelope.config.transactionTypes.length}
         initialStep={detectInitialStep}
         busy={detectBusy}
         error={detectError}

@@ -14,6 +14,7 @@ interface AutoDetectDialogProps {
   open: boolean;
   fileName: string;
   detections: DetectedTransactionType[];
+  existingTypeCount: number;
   initialStep: "prompt" | "review";
   busy: boolean;
   error: string | null;
@@ -41,6 +42,7 @@ export default function AutoDetectDialog({
   open,
   fileName,
   detections,
+  existingTypeCount,
   initialStep,
   busy,
   error,
@@ -94,6 +96,9 @@ export default function AutoDetectDialog({
   const typeCountLabel = `${typesToCreate} ${
     typesToCreate === 1 ? "transaction type" : "transaction types"
   }`;
+  const resultingTypeCount = clearExisting
+    ? selectedToApply.length
+    : existingTypeCount + typesToCreate;
 
   function toggle(identifier: string) {
     setSelectedIds((current) => {
@@ -309,6 +314,14 @@ export default function AutoDetectDialog({
                   types are placed before broader presets.
                 </p>
               )}
+              {filtered && !clearExisting && existingTypeCount > 0 && (
+                <p>
+                  The filter limits new imports only. Your {existingTypeCount} current{" "}
+                  {existingTypeCount === 1 ? "type remains" : "types remain"}. Select{" "}
+                  <strong>Clear existing transaction types</strong> to finish with only
+                  the filtered selection.
+                </p>
+              )}
             </div>
 
             <footer className="config-dialog__footer">
@@ -322,8 +335,12 @@ export default function AutoDetectDialog({
               <span className={error ? "config-message detect-error" : "config-path"}>
                 {error ??
                   (clearExisting
-                    ? `${typeCountLabel} will replace the current configuration.`
-                    : `${typeCountLabel} will be added.`)}
+                    ? `${typeCountLabel} will replace the current configuration. Result: ${resultingTypeCount}.`
+                    : existingTypeCount > 0
+                      ? `${typeCountLabel} will be added; ${existingTypeCount} current ${
+                          existingTypeCount === 1 ? "type remains" : "types remain"
+                        }. Result: ${resultingTypeCount}.`
+                      : `${typeCountLabel} will be added. Result: ${resultingTypeCount}.`)}
               </span>
               <button
                 className="button button--secondary"
@@ -340,9 +357,15 @@ export default function AutoDetectDialog({
                 <Sparkles size={15} />
                 {busy
                   ? "Applying…"
+                  : !clearExisting && typesToCreate === 0
+                    ? "Use current types"
                   : filtered
-                    ? `Apply ${selectedToApply.length} shown ${
-                        selectedToApply.length === 1 ? "type" : "types"
+                    ? `${clearExisting ? "Replace with" : "Add"} ${
+                        clearExisting ? selectedToApply.length : typesToCreate
+                      } shown ${
+                        (clearExisting ? selectedToApply.length : typesToCreate) === 1
+                          ? "type"
+                          : "types"
                       }`
                     : "Apply and open dashboard"}
               </button>
