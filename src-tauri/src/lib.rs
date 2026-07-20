@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 use tax_assistant_core::{
-    AppConfig, ImportResult, Transaction, analyze_with_config, default_config,
-    import_and_analyze_with_config, validate_config,
+    AppConfig, DetectedTransactionType, ImportResult, Transaction, analyze_with_config,
+    default_config, detect_transaction_types, import_and_analyze_with_config, validate_config,
 };
 
 #[tauri::command]
@@ -19,6 +19,12 @@ fn reanalyze_transactions(
     config: AppConfig,
 ) -> Result<ImportResult, String> {
     analyze_with_config(transactions, &config).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
+fn detect_types(transactions: Vec<Transaction>) -> Vec<DetectedTransactionType> {
+    detect_transaction_types(&transactions)
 }
 
 #[derive(Serialize)]
@@ -164,6 +170,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             import_csv,
             reanalyze_transactions,
+            detect_types,
             load_config,
             save_config,
             read_config_file,

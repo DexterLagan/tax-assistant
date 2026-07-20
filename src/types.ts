@@ -55,6 +55,15 @@ export interface TransactionType {
   color: string;
 }
 
+export interface DetectedTransactionType {
+  transactionType: TransactionType;
+  transactionCount: number;
+  total: string;
+  firstDate: string;
+  lastDate: string;
+  existingType: string | null;
+}
+
 export interface AppConfig {
   schemaVersion: number;
   transactionTypes: TransactionType[];

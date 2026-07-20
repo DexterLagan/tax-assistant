@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   ReceiptText,
   Search,
+  ScanSearch,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -34,12 +35,14 @@ import {
 } from "react";
 
 import BillBookView from "./BillBookView";
+import AutoDetectDialog from "./AutoDetectDialog";
 import ConfigDialog from "./ConfigDialog";
 import { demoResult } from "./demo";
 import { fallbackConfig } from "./fallbackConfig";
 import type {
   AppConfig,
   ConfigEnvelope,
+  DetectedTransactionType,
   ImportResult,
   Transaction,
 } from "./types";
@@ -61,6 +64,11 @@ const categoryColors = [
 ];
 const zoomLevels = [0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.6] as const;
 const defaultZoomIndex = zoomLevels.indexOf(1);
+
+interface PendingImport {
+  result: ImportResult;
+  fileName: string;
+}
 
 function savedZoomIndex() {
   const saved = Number(window.localStorage.getItem("tax-assistant-zoom"));
@@ -145,6 +153,14 @@ export default function App() {
   const [isImporting, setIsImporting] = useState(false);
   const [activePage, setActivePage] = useState<"overview" | "bills">("overview");
   const [configOpen, setConfigOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [detections, setDetections] = useState<DetectedTransactionType[]>([]);
+  const [detectInitialStep, setDetectInitialStep] = useState<"prompt" | "review">(
+    "prompt",
+  );
+  const [detectBusy, setDetectBusy] = useState(false);
+  const [detectError, setDetectError] = useState<string | null>(null);
+  const [hasImportedCsv, setHasImportedCsv] = useState(false);
   const [zoomIndex, setZoomIndex] = useState(savedZoomIndex);
   const [envelope, setEnvelope] = useState<ConfigEnvelope>({
     config: fallbackConfig,
@@ -310,9 +326,13 @@ export default function App() {
         csvText,
         config: envelope.config,
       });
-      setResult(imported);
-      setFileName(file.name);
-      setActivePage("bills");
+      const found = await invoke<DetectedTransactionType[]>("detect_types", {
+        transactions: imported.transactions,
+      });
+      setDetections(found);
+      setDetectInitialStep("prompt");
+      setDetectError(null);
+      setPendingImport({ result: imported, fileName: file.name });
     } catch (cause) {
       setError(
         typeof cause === "string"
@@ -322,6 +342,84 @@ export default function App() {
     } finally {
       setIsImporting(false);
       event.target.value = "";
+    }
+  }
+
+  function openImportedWorkspace(imported: PendingImport) {
+    setResult(imported.result);
+    setFileName(imported.fileName);
+    setActivePage("bills");
+    setHasImportedCsv(true);
+    setPendingImport(null);
+  }
+
+  async function rerunDetection() {
+    if (!hasImportedCsv) return;
+    setError(null);
+    setDetectBusy(true);
+    try {
+      const found = await invoke<DetectedTransactionType[]>("detect_types", {
+        transactions: result.transactions,
+      });
+      setDetections(found);
+      setDetectInitialStep("review");
+      setDetectError(null);
+      setPendingImport({ result, fileName });
+    } catch (cause) {
+      setError(typeof cause === "string" ? cause : "Could not detect transaction types.");
+    } finally {
+      setDetectBusy(false);
+    }
+  }
+
+  async function applyDetectedTypes(
+    selected: DetectedTransactionType[],
+    clearExisting: boolean,
+  ) {
+    if (!pendingImport) return;
+
+    setDetectBusy(true);
+    setError(null);
+    setDetectError(null);
+    try {
+      const detectedDefinitions = selected
+        .filter((item) => clearExisting || !item.existingType)
+        .map((item) => item.transactionType);
+      const existingDefinitions = clearExisting
+        ? []
+        : envelope.config.transactionTypes;
+      const existingIds = new Set(existingDefinitions.map((item) => item.id));
+      const uniqueDetected = detectedDefinitions.map((definition) => {
+        if (!existingIds.has(definition.id)) {
+          existingIds.add(definition.id);
+          return definition;
+        }
+        const id = `${definition.id}-${crypto.randomUUID?.().slice(0, 8) ?? Date.now()}`;
+        existingIds.add(id);
+        return { ...definition, id };
+      });
+      const config: AppConfig = {
+        ...envelope.config,
+        transactionTypes: [...uniqueDetected, ...existingDefinitions],
+      };
+      const saved = await invoke<ConfigEnvelope>("save_config", { config });
+      const reanalyzed = await invoke<ImportResult>("reanalyze_transactions", {
+        transactions: pendingImport.result.transactions,
+        config: saved.config,
+      });
+      setEnvelope(saved);
+      openImportedWorkspace({
+        result: reanalyzed,
+        fileName: pendingImport.fileName,
+      });
+    } catch (cause) {
+      setDetectError(
+        typeof cause === "string"
+          ? cause
+          : "Could not save the detected transaction types.",
+      );
+    } finally {
+      setDetectBusy(false);
     }
   }
 
@@ -399,6 +497,18 @@ export default function App() {
           </button>
           <button className="nav-link" onClick={() => setConfigOpen(true)}>
             <ListFilter size={18} /> Transaction types
+          </button>
+          <button
+            className="nav-link"
+            onClick={rerunDetection}
+            disabled={!hasImportedCsv || detectBusy}
+            title={
+              hasImportedCsv
+                ? "Review transaction types detected in the current CSV"
+                : "Import a CSV before detecting transaction types"
+            }
+          >
+            <ScanSearch size={18} /> Auto-detect types
           </button>
           <button className="nav-link" onClick={() => setActivePage("bills")}>
             <FileCheck2 size={18} /> Annual totals
@@ -684,6 +794,22 @@ export default function App() {
         onImport={importConfiguration}
         onExport={exportConfiguration}
         onRestore={restoreConfiguration}
+      />
+      <AutoDetectDialog
+        open={pendingImport !== null}
+        fileName={pendingImport?.fileName ?? ""}
+        detections={detections}
+        initialStep={detectInitialStep}
+        busy={detectBusy}
+        error={detectError}
+        onCancel={() => {
+          setPendingImport(null);
+          setDetectError(null);
+        }}
+        onUseCurrent={() => {
+          if (pendingImport) openImportedWorkspace(pendingImport);
+        }}
+        onApply={applyDetectedTypes}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 mod analysis;
 mod config;
+mod detection;
 mod import;
 mod model;
 mod rules;
@@ -8,6 +9,7 @@ pub use analysis::analyze;
 pub use config::{
     AppConfig, ConfigError, MatchMode, apply_config, default_config, validate_config,
 };
+pub use detection::{DetectedTransactionType, detect_transaction_types};
 pub use import::{ImportError, import_csv};
 pub use model::{
     Analysis, BillBook, CategoryTotal, ImportIssue, ImportResult, MonthlyTotal, Transaction,

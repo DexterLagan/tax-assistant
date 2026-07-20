@@ -18,12 +18,13 @@ domain layer, a Tauri desktop shell, and a React dashboard.
 The current preview includes:
 
 - CSV import with header aliases and support for Tax Helper's four-column format
+- Review-first auto-detection of distinct transaction descriptions in an imported CSV
 - Exact decimal arithmetic for transaction and summary amounts
 - The original Tax Helper presets, recovered from the Racket source
 - Ordered, explainable text and regular-expression matching
 - An annual roll-up plus a transaction-by-transaction view for every type
 - A visual warning when an expected bill has no matches
-- An editor for adding, changing, disabling, and deleting transaction types
+- An editor for adding, changing, disabling, deleting, or clearing transaction types
 - Versioned `.conf` import, export, and local persistence
 - Income, expense, net, monthly, and expense-category summaries
 - A desktop dashboard with interactive charts and a review queue
@@ -79,6 +80,24 @@ cargo test -p tax-assistant-core
 To try the importer, select
 [`fixtures/sample-transactions.csv`](fixtures/sample-transactions.csv) from the
 dashboard's **Import CSV** button while running the desktop app.
+
+### Auto-detect transaction types
+
+After a CSV is parsed, Tax Assistant asks whether to auto-detect its transaction
+types. Choose **Yes, review types** to see every distinct bank description,
+separated by income or expense direction. All are selected initially, and the
+review includes the number of matching entries, total, date range, and any
+existing preset that already covers the description.
+
+Leave **Clear existing transaction types** unchecked to add only newly detected
+types while preserving existing settings and avoiding duplicates. Check it to
+replace the configuration with only the selected detected types. Generated
+presets use exact, case-insensitive regular expressions so similarly named bank
+descriptions do not accidentally overlap.
+
+Use **Auto-detect types** in the sidebar to repeat the review for the current
+CSV. The **Clear all** action in Transaction types empties the configuration
+draft; choose **Save configuration** to make that change permanent.
 
 ### Interface size
 

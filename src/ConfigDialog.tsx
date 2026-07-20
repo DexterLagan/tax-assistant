@@ -114,6 +114,19 @@ export default function ConfigDialog({
     setSelectedId(next[Math.min(index, next.length - 1)]?.id ?? "");
   }
 
+  function clearDefinitions() {
+    if (
+      !window.confirm(
+        "Clear every transaction type from this draft? The change is not permanent until you save the configuration.",
+      )
+    ) {
+      return;
+    }
+    setDraft((current) => ({ ...current, transactionTypes: [] }));
+    setSelectedId("");
+    setMessage("All transaction types cleared from this draft. Save to keep the change.");
+  }
+
   async function saveDraft() {
     setBusy(true);
     setMessage(null);
@@ -207,6 +220,13 @@ export default function ConfigDialog({
           </button>
           <button className="filter-button" onClick={restoreDefaults} disabled={busy}>
             <RotateCcw size={14} /> Original presets
+          </button>
+          <button
+            className="danger-button config-toolbar__danger"
+            onClick={clearDefinitions}
+            disabled={busy || draft.transactionTypes.length === 0}
+          >
+            <Trash2 size={14} /> Clear all
           </button>
           <span className="config-source" title={envelope.path ?? undefined}>
             {envelope.source}

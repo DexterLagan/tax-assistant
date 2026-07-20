@@ -684,4 +684,19 @@ mod tests {
             Err(ConfigError::InvalidRegex { .. })
         ));
     }
+
+    #[test]
+    fn an_empty_configuration_leaves_every_transaction_unmatched() {
+        let config = AppConfig {
+            schema_version: CONFIG_SCHEMA_VERSION,
+            transaction_types: Vec::new(),
+        };
+        let mut transactions = vec![expense("FUTURE BILL", Decimal::new(75, 0))];
+
+        let book = apply_config(&mut transactions, &config).expect("empty configuration is valid");
+
+        assert!(book.summaries.is_empty());
+        assert_eq!(book.unmatched.len(), 1);
+        assert_eq!(transactions[0].category, "Unmatched");
+    }
 }
