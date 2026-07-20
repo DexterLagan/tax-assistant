@@ -166,6 +166,59 @@ input:focus-visible {
   margin-top: auto;
 }
 
+.zoom-control {
+  margin: 0 3px 11px;
+}
+
+.zoom-control > span {
+  display: block;
+  margin: 0 3px 5px;
+  color: #84958d;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.zoom-control > div {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  overflow: hidden;
+  border: 1px solid rgba(166, 192, 179, 0.15);
+  border-radius: 8px;
+  background: rgba(13, 31, 24, 0.2);
+}
+
+.zoom-control button {
+  min-height: 30px;
+  color: #c5d2cb;
+  border: 0;
+  border-right: 1px solid rgba(166, 192, 179, 0.12);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.zoom-control button:last-child {
+  border-right: 0;
+}
+
+.zoom-control button:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.zoom-control button:disabled {
+  color: #677a70;
+  cursor: default;
+}
+
+.zoom-control .zoom-control__value {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
 .privacy-note {
   display: flex;
   gap: 10px;

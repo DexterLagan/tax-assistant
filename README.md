@@ -80,6 +80,17 @@ To try the importer, select
 [`fixtures/sample-transactions.csv`](fixtures/sample-transactions.csv) from the
 dashboard's **Import CSV** button while running the desktop app.
 
+### Interface size
+
+Use the **Interface size** controls at the bottom of the sidebar, or the
+standard keyboard shortcuts:
+
+- `Command`/`Ctrl` + `+` makes the interface larger.
+- `Command`/`Ctrl` + `-` makes it smaller.
+- `Command`/`Ctrl` + `0` resets it to 100%.
+
+The selected size is remembered on that computer.
+
 ## Review bills and income
 
 After importing a CSV, open **Bills & income**:

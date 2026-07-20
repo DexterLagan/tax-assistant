@@ -1,4 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import ReactECharts from "echarts-for-react";
 import {
@@ -23,7 +24,14 @@ import {
   Tag,
   WalletCards,
 } from "lucide-react";
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import BillBookView from "./BillBookView";
 import ConfigDialog from "./ConfigDialog";
@@ -51,6 +59,14 @@ const categoryColors = [
   "#8d6d88",
   "#b8b4a6",
 ];
+const zoomLevels = [0.8, 0.9, 1, 1.1, 1.2, 1.4, 1.6] as const;
+const defaultZoomIndex = zoomLevels.indexOf(1);
+
+function savedZoomIndex() {
+  const saved = Number(window.localStorage.getItem("tax-assistant-zoom"));
+  const index = zoomLevels.findIndex((level) => level === saved);
+  return index >= 0 ? index : defaultZoomIndex;
+}
 
 function money(value: string) {
   return currency.format(Number(value));
@@ -129,6 +145,7 @@ export default function App() {
   const [isImporting, setIsImporting] = useState(false);
   const [activePage, setActivePage] = useState<"overview" | "bills">("overview");
   const [configOpen, setConfigOpen] = useState(false);
+  const [zoomIndex, setZoomIndex] = useState(savedZoomIndex);
   const [envelope, setEnvelope] = useState<ConfigEnvelope>({
     config: fallbackConfig,
     source: "Built-in defaults",
@@ -137,6 +154,46 @@ export default function App() {
   });
   const fileInput = useRef<HTMLInputElement>(null);
   const { analysis, transactions, billBook } = result;
+  const zoom = zoomLevels[zoomIndex];
+
+  const changeZoom = useCallback((direction: "in" | "out" | "reset") => {
+    setZoomIndex((current) => {
+      if (direction === "reset") return defaultZoomIndex;
+      const offset = direction === "in" ? 1 : -1;
+      return Math.min(zoomLevels.length - 1, Math.max(0, current + offset));
+    });
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("tax-assistant-zoom", String(zoom));
+    if (isTauri()) {
+      getCurrentWebview().setZoom(zoom).catch(() => {
+        document.body.style.setProperty("zoom", String(zoom));
+      });
+    } else {
+      document.body.style.setProperty("zoom", String(zoom));
+    }
+  }, [zoom]);
+
+  useEffect(() => {
+    function handleZoomShortcut(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        changeZoom("in");
+      } else if (event.key === "-") {
+        event.preventDefault();
+        changeZoom("out");
+      } else if (event.key === "0") {
+        event.preventDefault();
+        changeZoom("reset");
+      }
+    }
+
+    window.addEventListener("keydown", handleZoomShortcut);
+    return () => window.removeEventListener("keydown", handleZoomShortcut);
+  }, [changeZoom]);
 
   useEffect(() => {
     let active = true;
@@ -357,6 +414,36 @@ export default function App() {
         </nav>
 
         <div className="sidebar__bottom">
+          <div className="zoom-control" role="group" aria-label="Interface size">
+            <span>Interface size</span>
+            <div>
+              <button
+                onClick={() => changeZoom("out")}
+                disabled={zoomIndex === 0}
+                aria-label="Make interface smaller"
+                title="Make interface smaller (Command or Control minus)"
+              >
+                A−
+              </button>
+              <button
+                className="zoom-control__value"
+                onClick={() => changeZoom("reset")}
+                disabled={zoomIndex === defaultZoomIndex}
+                aria-label={`Reset interface size, currently ${Math.round(zoom * 100)}%`}
+                title="Reset interface size (Command or Control 0)"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => changeZoom("in")}
+                disabled={zoomIndex === zoomLevels.length - 1}
+                aria-label="Make interface larger"
+                title="Make interface larger (Command or Control plus)"
+              >
+                A+
+              </button>
+            </div>
+          </div>
           <div className="privacy-note">
             <ShieldCheck size={19} />
             <span>
