@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::NaiveDate;
 use regex::escape;
@@ -25,6 +25,7 @@ pub struct DetectedTransactionType {
 
 struct DetectionGroup {
     description: String,
+    patterns: BTreeSet<String>,
     direction: TransactionKind,
     transaction_count: usize,
     total: Decimal,
@@ -35,6 +36,25 @@ struct DetectionGroup {
 
 fn normalized_description(description: &str) -> String {
     description.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn is_reference_number(token: &str) -> bool {
+    token.len() >= 6 && token.chars().all(|character| character.is_ascii_digit())
+}
+
+fn description_without_references(description: &str) -> String {
+    let description = normalized_description(description);
+    let simplified = description
+        .split_whitespace()
+        .filter(|token| !is_reference_number(token))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if simplified.is_empty() {
+        description
+    } else {
+        simplified
+    }
 }
 
 fn direction_label(direction: TransactionKind) -> &'static str {
@@ -73,7 +93,13 @@ fn slug(value: &str) -> String {
 }
 
 fn exact_pattern(description: &str) -> String {
-    let words = description.split_whitespace().map(escape);
+    let words = description.split_whitespace().map(|token| {
+        if is_reference_number(token) {
+            r"[0-9]{6,}".to_owned()
+        } else {
+            escape(&token.to_lowercase())
+        }
+    });
     format!("^{}$", words.collect::<Vec<_>>().join(r"\s+"))
 }
 
@@ -84,11 +110,12 @@ pub fn detect_transaction_types(transactions: &[Transaction]) -> Vec<DetectedTra
     let mut groups = BTreeMap::<String, DetectionGroup>::new();
 
     for transaction in transactions {
-        let description = normalized_description(&transaction.description);
+        let description = description_without_references(&transaction.description);
         let direction = direction_label(transaction.kind);
         let key = format!("{direction}\0{}", description.to_lowercase());
         let entry = groups.entry(key).or_insert_with(|| DetectionGroup {
             description,
+            patterns: BTreeSet::new(),
             direction: transaction.kind,
             transaction_count: 0,
             total: Decimal::ZERO,
@@ -99,6 +126,9 @@ pub fn detect_transaction_types(transactions: &[Transaction]) -> Vec<DetectedTra
 
         entry.transaction_count += 1;
         entry.total += transaction.amount;
+        entry
+            .patterns
+            .insert(exact_pattern(&transaction.description));
         entry.first_date = entry.first_date.min(transaction.date);
         entry.last_date = entry.last_date.max(transaction.date);
         if entry.existing_type.is_none() {
@@ -121,13 +151,12 @@ pub fn detect_transaction_types(transactions: &[Transaction]) -> Vec<DetectedTra
                 direction_label(group.direction),
                 stable_hash(&key)
             );
-            let pattern = exact_pattern(&group.description);
 
             DetectedTransactionType {
                 transaction_type: TransactionType {
                     id: identifier,
                     name: group.description,
-                    patterns: vec![pattern],
+                    patterns: group.patterns.into_iter().collect(),
                     match_mode: MatchMode::Regex,
                     direction: Some(group.direction),
                     minimum_amount: None,
@@ -210,7 +239,7 @@ mod tests {
         assert_eq!(detected[0].transaction_count, 2);
         assert_eq!(detected[0].total, Decimal::new(225, 0));
         assert_eq!(detected[0].existing_type.as_deref(), Some("Electricity"));
-        assert_eq!(detected[0].transaction_type.patterns, [r"^HYDRO\s+OTTAWA$"]);
+        assert_eq!(detected[0].transaction_type.patterns, [r"^hydro\s+ottawa$"]);
     }
 
     #[test]
@@ -239,5 +268,60 @@ mod tests {
             detected[0].transaction_type.id,
             detected[1].transaction_type.id
         );
+    }
+
+    #[test]
+    fn groups_long_bank_references_and_wildcards_the_generated_pattern() {
+        let transactions = vec![
+            transaction(
+                "Internet Banking INTERNET BILL PAY 000000101727 UTILITY INC",
+                TransactionKind::Expense,
+                Decimal::new(100, 0),
+                3,
+                None,
+            ),
+            transaction(
+                "Internet Banking INTERNET BILL PAY 000000842910 UTILITY INC",
+                TransactionKind::Expense,
+                Decimal::new(125, 0),
+                8,
+                None,
+            ),
+        ];
+
+        let detected = detect_transaction_types(&transactions);
+
+        assert_eq!(detected.len(), 1);
+        assert_eq!(
+            detected[0].transaction_type.name,
+            "Internet Banking INTERNET BILL PAY UTILITY INC"
+        );
+        assert_eq!(detected[0].transaction_count, 2);
+        assert_eq!(
+            detected[0].transaction_type.patterns,
+            [r"^internet\s+banking\s+internet\s+bill\s+pay\s+[0-9]{6,}\s+utility\s+inc$"]
+        );
+    }
+
+    #[test]
+    fn retains_short_numbers_that_may_be_part_of_a_merchant_name() {
+        let transactions = vec![
+            transaction(
+                "407 TOLL",
+                TransactionKind::Expense,
+                Decimal::new(20, 0),
+                3,
+                None,
+            ),
+            transaction(
+                "416 TOLL",
+                TransactionKind::Expense,
+                Decimal::new(25, 0),
+                8,
+                None,
+            ),
+        ];
+
+        assert_eq!(detect_transaction_types(&transactions).len(), 2);
     }
 }

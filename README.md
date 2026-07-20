@@ -93,7 +93,14 @@ Leave **Clear existing transaction types** unchecked to add only newly detected
 types while preserving existing settings and avoiding duplicates. Check it to
 replace the configuration with only the selected detected types. Generated
 presets use exact, case-insensitive regular expressions so similarly named bank
-descriptions do not accidentally overlap.
+descriptions do not accidentally overlap. Standalone bank reference numbers
+with six or more digits are treated as per-transaction values: they are removed
+from the displayed type name and represented by a numeric wildcard in its
+matching pattern. Short numbers remain part of the name.
+
+Filtering the review changes the visible selection count. While a filter is
+active, **Select shown** and **Deselect shown** affect only the matching rows;
+the overall selected count remains visible beside it.
 
 Use **Auto-detect types** in the sidebar to repeat the review for the current
 CSV. The **Clear all** action in Transaction types empties the configuration

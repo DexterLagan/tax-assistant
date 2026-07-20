@@ -81,15 +81,33 @@ export default function AutoDetectDialog({
   const selected = detections.filter((item) =>
     selectedIds.has(item.transactionType.id),
   );
+  const visibleSelectedCount = visibleDetections.filter((item) =>
+    selectedIds.has(item.transactionType.id),
+  ).length;
+  const filtered = query.trim().length > 0;
   const typesToCreate = clearExisting
     ? selected.length
     : selected.filter((item) => !item.existingType).length;
+  const typeCountLabel = `${typesToCreate} ${
+    typesToCreate === 1 ? "transaction type" : "transaction types"
+  }`;
 
   function toggle(identifier: string) {
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(identifier)) next.delete(identifier);
       else next.add(identifier);
+      return next;
+    });
+  }
+
+  function setVisibleSelection(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      visibleDetections.forEach((item) => {
+        if (checked) next.add(item.transactionType.id);
+        else next.delete(item.transactionType.id);
+      });
       return next;
     });
   }
@@ -181,22 +199,34 @@ export default function AutoDetectDialog({
               </label>
               <button
                 className="filter-button"
-                onClick={() =>
-                  setSelectedIds(
-                    new Set(detections.map((item) => item.transactionType.id)),
-                  )
-                }
+                onClick={() => setVisibleSelection(true)}
+                disabled={visibleDetections.length === 0}
               >
-                <CheckSquare2 size={14} /> Select all
+                <CheckSquare2 size={14} /> {filtered ? "Select shown" : "Select all"}
               </button>
               <button
                 className="filter-button"
-                onClick={() => setSelectedIds(new Set())}
+                onClick={() => setVisibleSelection(false)}
+                disabled={visibleDetections.length === 0}
               >
-                <Square size={14} /> Select none
+                <Square size={14} /> {filtered ? "Deselect shown" : "Select none"}
               </button>
               <span className="detect-toolbar__count">
-                {selected.length} of {detections.length} selected
+                {filtered ? (
+                  <>
+                    <strong>
+                      {visibleSelectedCount} of {visibleDetections.length}
+                    </strong>{" "}
+                    shown selected · {selected.length} overall
+                  </>
+                ) : (
+                  <>
+                    <strong>
+                      {selected.length} of {detections.length}
+                    </strong>{" "}
+                    selected
+                  </>
+                )}
               </span>
             </div>
 
@@ -288,8 +318,8 @@ export default function AutoDetectDialog({
               <span className={error ? "config-message detect-error" : "config-path"}>
                 {error ??
                   (clearExisting
-                    ? `${typesToCreate} transaction types will replace the current configuration.`
-                    : `${typesToCreate} new transaction types will be added.`)}
+                    ? `${typeCountLabel} will replace the current configuration.`
+                    : `${typeCountLabel} will be added.`)}
               </span>
               <button
                 className="button button--secondary"

@@ -1326,6 +1326,10 @@ tbody tr:hover {
   font-size: 9px;
 }
 
+.detect-toolbar__count strong {
+  color: #4f5d55;
+}
+
 .detect-list {
   min-height: 0;
   padding: 9px 13px;

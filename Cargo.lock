@@ -3501,7 +3501,7 @@ dependencies = [
 
 [[package]]
 name = "tax-assistant"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -3513,7 +3513,7 @@ dependencies = [
 
 [[package]]
 name = "tax-assistant-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "chrono",
  "csv",
