@@ -1,0 +1,19 @@
+node_modules/
+dist/
+target/
+.pnpm-store/
+
+.DS_Store
+Thumbs.db
+*.log
+
+.env
+.env.*
+!.env.example
+
+# Local Tax Assistant workspaces may contain sensitive financial data.
+*.sqlite
+*.sqlite3
+*.db
+imports/
+exports/
