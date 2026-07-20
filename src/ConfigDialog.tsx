@@ -346,43 +346,21 @@ export default function ConfigDialog({
                   </label>
                 </div>
 
-                <div className="form-grid">
-                  <label>
-                    <span>Minimum amount</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={selected.minimumAmount ?? ""}
-                      placeholder="No minimum"
-                      onChange={(event) =>
-                        updateSelected({
-                          minimumAmount: event.target.value || null,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>Claim percentage</span>
-                    <div className="suffix-input">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={selected.claimPercentage}
-                        onChange={(event) =>
-                          updateSelected({
-                            claimPercentage: Math.min(
-                              100,
-                              Math.max(0, Number(event.target.value)),
-                            ),
-                          })
-                        }
-                      />
-                      <span>%</span>
-                    </div>
-                  </label>
-                </div>
+                <label className="form-field">
+                  <span>Minimum amount</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={selected.minimumAmount ?? ""}
+                    placeholder="No minimum"
+                    onChange={(event) =>
+                      updateSelected({
+                        minimumAmount: event.target.value || null,
+                      })
+                    }
+                  />
+                </label>
 
                 <div className="toggle-grid">
                   <label className="toggle">

@@ -131,8 +131,8 @@ After importing a CSV, open **Bills & income**:
 Open **Transaction types** to add, edit, disable, or delete definitions.
 Definitions may contain several case-insensitive text patterns or regular
 expressions. Types are evaluated in list order and the first enabled match wins.
-The claim percentage supports adjustments such as the original Rogers 50%
-calculation.
+Tax Assistant reports raw annual totals and leaves home-office claim calculations
+to tax-filing software.
 
 ## Configuration and portable copies
 

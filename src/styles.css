@@ -916,7 +916,7 @@ tbody tr:hover {
 
 .bill-summary-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
@@ -1066,10 +1066,6 @@ tbody tr:hover {
 
 .match-health--warning {
   background: #fff2e8;
-}
-
-.amount--claim {
-  color: var(--green);
 }
 
 .bill-detail-hero {

@@ -169,6 +169,7 @@ export default function App() {
     portable: false,
   });
   const fileInput = useRef<HTMLInputElement>(null);
+  const analysisRevision = useRef(0);
   const { analysis, transactions, billBook } = result;
   const zoom = zoomLevels[zoomIndex];
 
@@ -213,15 +214,18 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    const revision = ++analysisRevision.current;
     invoke<ConfigEnvelope>("load_config")
       .then(async (loaded) => {
-        if (!active) return;
+        if (!active || revision !== analysisRevision.current) return;
         setEnvelope(loaded);
         const reanalyzed = await invoke<ImportResult>("reanalyze_transactions", {
           transactions: demoResult.transactions,
           config: loaded.config,
         });
-        if (active) setResult(reanalyzed);
+        if (active && revision === analysisRevision.current) {
+          setResult(reanalyzed);
+        }
       })
       .catch(() => {
         // Browser-only development keeps the deterministic demo configuration.
@@ -346,6 +350,7 @@ export default function App() {
   }
 
   function openImportedWorkspace(imported: PendingImport) {
+    analysisRevision.current += 1;
     setResult(imported.result);
     setFileName(imported.fileName);
     setActivePage("bills");
@@ -378,6 +383,7 @@ export default function App() {
   ) {
     if (!pendingImport) return;
 
+    analysisRevision.current += 1;
     setDetectBusy(true);
     setError(null);
     setDetectError(null);
@@ -424,17 +430,21 @@ export default function App() {
   }
 
   async function reanalyze(config: AppConfig) {
+    const revision = ++analysisRevision.current;
     const updated = await invoke<ImportResult>("reanalyze_transactions", {
       transactions: result.transactions,
       config,
     });
-    setResult(updated);
+    if (revision === analysisRevision.current) {
+      setResult(updated);
+    }
   }
 
   async function saveConfiguration(config: AppConfig) {
+    analysisRevision.current += 1;
     const saved = await invoke<ConfigEnvelope>("save_config", { config });
-    await reanalyze(saved.config);
     setEnvelope(saved);
+    await reanalyze(saved.config);
   }
 
   async function importConfiguration() {

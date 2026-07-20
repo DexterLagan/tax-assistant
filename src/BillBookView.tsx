@@ -107,10 +107,6 @@ function DetailView({ summary }: { summary: TransactionTypeSummary }) {
             <small>Annual total</small>
             <strong>{money(summary.total)}</strong>
           </span>
-          <span>
-            <small>Claim at {definition.claimPercentage}%</small>
-            <strong>{money(summary.claimTotal)}</strong>
-          </span>
         </div>
       </section>
 
@@ -184,19 +180,6 @@ export default function BillBookView({
   const expenseTotal = expectedTransactions
     .filter((transaction) => transaction.kind === "expense")
     .reduce((total, transaction) => total + Number(transaction.amount), 0);
-  const claimExpenseTotal = expectedSummaries.reduce(
-    (total, summary) =>
-      total +
-      summary.transactions
-        .filter((transaction) => transaction.kind === "expense")
-        .reduce(
-          (subtotal, transaction) =>
-            subtotal +
-            (Number(transaction.amount) * summary.transactionType.claimPercentage) / 100,
-          0,
-        ),
-    0,
-  );
   const missingCount = visibleSummaries.filter(
     (item) => item.transactionType.showInSummary && item.transactionCount === 0,
   ).length;
@@ -269,11 +252,6 @@ export default function BillBookView({
               <strong>{money(expenseTotal)}</strong>
               <span>Across expected bill types</span>
             </article>
-            <article>
-              <small>Claim-adjusted expenses</small>
-              <strong>{money(claimExpenseTotal)}</strong>
-              <span>After each bill type’s percentage</span>
-            </article>
             <article className={missingCount > 0 ? "metric-warning" : ""}>
               <small>Patterns needing review</small>
               <strong>{missingCount}</strong>
@@ -299,7 +277,6 @@ export default function BillBookView({
                     <th>Pattern</th>
                     <th>Matches</th>
                     <th>Annual total</th>
-                    <th>Claimable</th>
                     <th><span className="visually-hidden">Open</span></th>
                   </tr>
                 </thead>
@@ -315,7 +292,6 @@ export default function BillBookView({
                           <i style={{ background: summary.transactionType.color }} />
                           <span>
                             <strong>{summary.transactionType.name}</strong>
-                            <small>{summary.transactionType.claimPercentage}% claim</small>
                           </span>
                         </span>
                       </td>
@@ -337,7 +313,6 @@ export default function BillBookView({
                         )}
                       </td>
                       <td className="amount">{money(summary.total)}</td>
-                      <td className="amount amount--claim">{money(summary.claimTotal)}</td>
                       <td><ArrowRight size={15} /></td>
                     </tr>
                   ))}

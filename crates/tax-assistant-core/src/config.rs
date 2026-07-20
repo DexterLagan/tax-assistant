@@ -692,11 +692,14 @@ mod tests {
             transaction_types: Vec::new(),
         };
         let mut transactions = vec![expense("FUTURE BILL", Decimal::new(75, 0))];
+        transactions[0].category = "Previously matched bill".to_owned();
+        transactions[0].matched_rule = Some("Previously matched bill".to_owned());
 
         let book = apply_config(&mut transactions, &config).expect("empty configuration is valid");
 
         assert!(book.summaries.is_empty());
         assert_eq!(book.unmatched.len(), 1);
         assert_eq!(transactions[0].category, "Unmatched");
+        assert_eq!(transactions[0].matched_rule, None);
     }
 }
