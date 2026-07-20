@@ -101,7 +101,7 @@ archive them. A content hash is sufficient for duplicate-import detection.
 
 ### Phase 0 — foundation and vertical slice
 
-Status: in progress in the initial repository milestone.
+Status: complete in the initial repository milestone.
 
 - Rust workspace and isolated core crate
 - Tauri 2 desktop shell
@@ -143,6 +143,10 @@ correctly, ambiguities are shown before commit, and malformed rows are
 recoverable.
 
 ### Phase 3 — rules and review workflow
+
+Status: in progress. The ordered contains/regular-expression editor, original
+Tax Helper presets, per-type visual verification, annual roll-up, unmatched
+queue, and portable `.conf` persistence are implemented.
 
 - category and rule editor
 - contains, exact, starts-with, and regular-expression matching

@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
 use chrono::Datelike;
@@ -32,7 +33,7 @@ pub fn analyze(transactions: &[Transaction]) -> Analysis {
             TransactionKind::Expense => expenses += transaction.amount,
         }
 
-        if transaction.category == "Uncategorized" {
+        if matches!(transaction.category.as_str(), "Uncategorized" | "Unmatched") {
             uncategorized_count += 1;
         } else {
             categorized_count += 1;
@@ -64,7 +65,7 @@ pub fn analyze(transactions: &[Transaction]) -> Analysis {
             transaction_count: total.count,
         })
         .collect();
-    category_totals.sort_by(|left, right| right.amount.cmp(&left.amount));
+    category_totals.sort_by_key(|total| Reverse(total.amount));
 
     let monthly_totals = months
         .into_iter()

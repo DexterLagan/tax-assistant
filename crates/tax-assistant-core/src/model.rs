@@ -2,6 +2,8 @@ use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
+use crate::config::MatchMode;
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionKind {
@@ -69,5 +71,41 @@ pub struct ImportIssue {
 pub struct ImportResult {
     pub transactions: Vec<Transaction>,
     pub analysis: Analysis,
+    pub bill_book: BillBook,
     pub issues: Vec<ImportIssue>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionType {
+    pub id: String,
+    pub name: String,
+    pub patterns: Vec<String>,
+    pub match_mode: MatchMode,
+    pub direction: Option<TransactionKind>,
+    #[serde(with = "rust_decimal::serde::str_option")]
+    pub minimum_amount: Option<Decimal>,
+    pub claim_percentage: u8,
+    pub enabled: bool,
+    pub show_in_summary: bool,
+    pub color: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionTypeSummary {
+    pub transaction_type: TransactionType,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub total: Decimal,
+    #[serde(with = "rust_decimal::serde::str")]
+    pub claim_total: Decimal,
+    pub transaction_count: usize,
+    pub transactions: Vec<Transaction>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BillBook {
+    pub summaries: Vec<TransactionTypeSummary>,
+    pub unmatched: Vec<Transaction>,
 }

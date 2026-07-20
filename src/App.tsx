@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import ReactECharts from "echarts-for-react";
 import {
   ArrowDownRight,
@@ -22,10 +23,18 @@ import {
   Tag,
   WalletCards,
 } from "lucide-react";
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 
+import BillBookView from "./BillBookView";
+import ConfigDialog from "./ConfigDialog";
 import { demoResult } from "./demo";
-import type { ImportResult, Transaction } from "./types";
+import { fallbackConfig } from "./fallbackConfig";
+import type {
+  AppConfig,
+  ConfigEnvelope,
+  ImportResult,
+  Transaction,
+} from "./types";
 
 const currency = new Intl.NumberFormat("en-CA", {
   style: "currency",
@@ -34,7 +43,14 @@ const currency = new Intl.NumberFormat("en-CA", {
 });
 
 const monthLabel = new Intl.DateTimeFormat("en-CA", { month: "short" });
-const categoryColors = ["#5d7b6f", "#cf8557", "#7d8eb0", "#d1ad58", "#8d6d88", "#b8b4a6"];
+const categoryColors = [
+  "#5d7b6f",
+  "#cf8557",
+  "#7d8eb0",
+  "#d1ad58",
+  "#8d6d88",
+  "#b8b4a6",
+];
 
 function money(value: string) {
   return currency.format(Number(value));
@@ -70,12 +86,17 @@ function MetricCard({
 }
 
 function TransactionRow({ transaction }: { transaction: Transaction }) {
-  const categoryClass =
-    transaction.category === "Uncategorized" ? "status status--warning" : "status";
+  const needsReview = ["Uncategorized", "Unmatched"].includes(transaction.category);
+  const categoryClass = needsReview ? "status status--warning" : "status";
 
   return (
     <tr>
-      <td>{new Date(`${transaction.date}T12:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}</td>
+      <td>
+        {new Date(`${transaction.date}T12:00:00`).toLocaleDateString("en-CA", {
+          month: "short",
+          day: "numeric",
+        })}
+      </td>
       <td>
         <span className="merchant">{transaction.description}</span>
         <span className="rule-note">
@@ -106,8 +127,36 @@ export default function App() {
   const [fileName, setFileName] = useState("Example workspace");
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [activePage, setActivePage] = useState<"overview" | "bills">("overview");
+  const [configOpen, setConfigOpen] = useState(false);
+  const [envelope, setEnvelope] = useState<ConfigEnvelope>({
+    config: fallbackConfig,
+    source: "Built-in defaults",
+    path: null,
+    portable: false,
+  });
   const fileInput = useRef<HTMLInputElement>(null);
-  const { analysis, transactions } = result;
+  const { analysis, transactions, billBook } = result;
+
+  useEffect(() => {
+    let active = true;
+    invoke<ConfigEnvelope>("load_config")
+      .then(async (loaded) => {
+        if (!active) return;
+        setEnvelope(loaded);
+        const reanalyzed = await invoke<ImportResult>("reanalyze_transactions", {
+          transactions: demoResult.transactions,
+          config: loaded.config,
+        });
+        if (active) setResult(reanalyzed);
+      })
+      .catch(() => {
+        // Browser-only development keeps the deterministic demo configuration.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const monthlyOption = useMemo(
     () => ({
@@ -200,9 +249,13 @@ export default function App() {
     setError(null);
     try {
       const csvText = await file.text();
-      const imported = await invoke<ImportResult>("import_csv", { csvText });
+      const imported = await invoke<ImportResult>("import_csv", {
+        csvText,
+        config: envelope.config,
+      });
       setResult(imported);
       setFileName(file.name);
+      setActivePage("bills");
     } catch (cause) {
       setError(
         typeof cause === "string"
@@ -214,6 +267,48 @@ export default function App() {
       event.target.value = "";
     }
   }
+
+  async function reanalyze(config: AppConfig) {
+    const updated = await invoke<ImportResult>("reanalyze_transactions", {
+      transactions: result.transactions,
+      config,
+    });
+    setResult(updated);
+  }
+
+  async function saveConfiguration(config: AppConfig) {
+    const saved = await invoke<ConfigEnvelope>("save_config", { config });
+    await reanalyze(saved.config);
+    setEnvelope(saved);
+  }
+
+  async function importConfiguration() {
+    const selected = await openDialog({
+      title: "Import Tax Assistant configuration",
+      multiple: false,
+      filters: [{ name: "Tax Assistant configuration", extensions: ["conf"] }],
+    });
+    if (!selected || Array.isArray(selected)) return null;
+    return invoke<AppConfig>("read_config_file", { path: selected });
+  }
+
+  async function exportConfiguration(config: AppConfig) {
+    const selected = await saveDialog({
+      title: "Export portable Tax Assistant configuration",
+      defaultPath: "tax-assistant.conf",
+      filters: [{ name: "Tax Assistant configuration", extensions: ["conf"] }],
+    });
+    if (!selected) return false;
+    await invoke("write_config_file", { path: selected, config });
+    return true;
+  }
+
+  async function restoreConfiguration() {
+    return invoke<AppConfig>("get_default_config");
+  }
+
+  const pageTitle = activePage === "overview" ? "Financial overview" : "Bill review";
+  const pageKicker = activePage === "overview" ? "2025 tax year" : "Home office expenses";
 
   return (
     <div className="app-shell">
@@ -230,23 +325,33 @@ export default function App() {
 
         <nav aria-label="Primary">
           <p className="nav-label">Workspace</p>
-          <a className="nav-link nav-link--active" href="#overview">
+          <button
+            className={`nav-link ${activePage === "overview" ? "nav-link--active" : ""}`}
+            onClick={() => setActivePage("overview")}
+          >
             <LayoutDashboard size={18} /> Overview
-          </a>
-          <a className="nav-link" href="#transactions">
-            <WalletCards size={18} /> Transactions
-            <span className="nav-count">{transactions.length}</span>
-          </a>
-          <a className="nav-link" href="#rules">
-            <ListFilter size={18} /> Rules
-          </a>
-          <a className="nav-link" href="#reports">
-            <FileCheck2 size={18} /> Reports
-          </a>
+          </button>
+          <button
+            className={`nav-link ${activePage === "bills" ? "nav-link--active" : ""}`}
+            onClick={() => setActivePage("bills")}
+          >
+            <WalletCards size={18} /> Bills & income
+            <span className="nav-count">
+              {billBook.summaries.filter((item) => item.transactionCount > 0).length}
+            </span>
+          </button>
+          <button className="nav-link" onClick={() => setConfigOpen(true)}>
+            <ListFilter size={18} /> Transaction types
+          </button>
+          <button className="nav-link" onClick={() => setActivePage("bills")}>
+            <FileCheck2 size={18} /> Annual totals
+          </button>
 
           <p className="nav-label nav-label--spaced">Tax year</p>
           <button className="year-switcher">
-            <span><BookOpenCheck size={18} /> 2025 return</span>
+            <span>
+              <BookOpenCheck size={18} /> 2025 return
+            </span>
             <ChevronDown size={16} />
           </button>
         </nav>
@@ -256,21 +361,23 @@ export default function App() {
             <ShieldCheck size={19} />
             <span>
               <strong>Private by design</strong>
-              <small>Your data stays on this device</small>
+              <small>Your data and patterns stay on this device</small>
             </span>
           </div>
-          <a className="nav-link" href="#settings">
-            <Settings size={18} /> Settings
-          </a>
+          <button className="nav-link" onClick={() => setConfigOpen(true)}>
+            <Settings size={18} /> Configuration
+          </button>
         </div>
       </aside>
 
       <main>
         <header className="topbar">
           <div>
-            <span className="eyebrow">2025 tax year</span>
-            <h1>Financial overview</h1>
-            <p>{fileName} · {transactions.length} transactions</p>
+            <span className="eyebrow">{pageKicker}</span>
+            <h1>{pageTitle}</h1>
+            <p>
+              {fileName} · {transactions.length} transactions
+            </p>
           </div>
           <div className="topbar__actions">
             <label className="search">
@@ -296,157 +403,201 @@ export default function App() {
           </div>
         </header>
 
-        <div className="content">
-          {error && (
-            <div className="alert" role="alert">
-              <strong>Couldn’t import that file.</strong>
-              <span>{error}</span>
-              <button onClick={() => setError(null)}>Dismiss</button>
-            </div>
-          )}
+        {error && (
+          <div className="alert app-alert" role="alert">
+            <strong>Tax Assistant needs attention.</strong>
+            <span>{error}</span>
+            <button onClick={() => setError(null)}>Dismiss</button>
+          </div>
+        )}
 
-          <section className="metrics" aria-label="Financial totals">
-            <MetricCard
-              title="Gross income"
-              value={money(analysis.income)}
-              caption={`${transactionLabel(transactions.filter((item) => item.kind === "income").length)} incoming`}
-              tone="green"
-              icon={<ArrowUpRight size={19} />}
-            />
-            <MetricCard
-              title="Total expenses"
-              value={money(analysis.expenses)}
-              caption={`${transactionLabel(transactions.filter((item) => item.kind === "expense").length)} outgoing`}
-              tone="orange"
-              icon={<ArrowDownRight size={19} />}
-            />
-            <MetricCard
-              title="Net income"
-              value={money(analysis.net)}
-              caption="Before tax adjustments"
-              tone="blue"
-              icon={<CircleDollarSign size={19} />}
-            />
-            <MetricCard
-              title="Categorized"
-              value={`${transactions.length === 0 ? 0 : Math.round((analysis.categorizedCount / transactions.length) * 100)}%`}
-              caption={`${transactionLabel(analysis.uncategorizedCount)} to review`}
-              tone="neutral"
-              icon={<Tag size={19} />}
-            />
-          </section>
-
-          <section className="chart-grid">
-            <article className="panel panel--wide">
-              <div className="panel__heading">
-                <div>
-                  <span className="panel__kicker"><BarChart3 size={15} /> Cash flow</span>
-                  <h2>Income and expenses</h2>
-                </div>
-                <button className="filter-button">
-                  Monthly <ChevronDown size={15} />
-                </button>
-              </div>
-              <ReactECharts
-                option={monthlyOption}
-                style={{ height: 270 }}
-                opts={{ renderer: "svg" }}
+        {activePage === "bills" ? (
+          <BillBookView
+            billBook={billBook}
+            fileName={fileName}
+            envelope={envelope}
+            onConfigure={() => setConfigOpen(true)}
+          />
+        ) : (
+          <div className="content">
+            <section className="metrics" aria-label="Financial totals">
+              <MetricCard
+                title="Gross income"
+                value={money(analysis.income)}
+                caption={`${transactionLabel(
+                  transactions.filter((item) => item.kind === "income").length,
+                )} incoming`}
+                tone="green"
+                icon={<ArrowUpRight size={19} />}
               />
-            </article>
+              <MetricCard
+                title="Total expenses"
+                value={money(analysis.expenses)}
+                caption={`${transactionLabel(
+                  transactions.filter((item) => item.kind === "expense").length,
+                )} outgoing`}
+                tone="orange"
+                icon={<ArrowDownRight size={19} />}
+              />
+              <MetricCard
+                title="Net income"
+                value={money(analysis.net)}
+                caption="Before tax adjustments"
+                tone="blue"
+                icon={<CircleDollarSign size={19} />}
+              />
+              <MetricCard
+                title="Matched"
+                value={`${
+                  transactions.length === 0
+                    ? 0
+                    : Math.round((analysis.categorizedCount / transactions.length) * 100)
+                }%`}
+                caption={`${transactionLabel(analysis.uncategorizedCount)} to review`}
+                tone="neutral"
+                icon={<Tag size={19} />}
+              />
+            </section>
 
-            <article className="panel">
-              <div className="panel__heading">
-                <div>
-                  <span className="panel__kicker"><SlidersHorizontal size={15} /> Breakdown</span>
-                  <h2>Expenses by category</h2>
+            <section className="chart-grid">
+              <article className="panel panel--wide">
+                <div className="panel__heading">
+                  <div>
+                    <span className="panel__kicker">
+                      <BarChart3 size={15} /> Cash flow
+                    </span>
+                    <h2>Income and expenses</h2>
+                  </div>
+                  <button className="filter-button">
+                    Monthly <ChevronDown size={15} />
+                  </button>
                 </div>
-              </div>
-              <div className="donut-wrap">
                 <ReactECharts
-                  option={categoryOption}
-                  style={{ height: 205, width: 205 }}
+                  option={monthlyOption}
+                  style={{ height: 270 }}
                   opts={{ renderer: "svg" }}
                 />
-                <div className="donut-total">
-                  <small>Total</small>
-                  <strong>{money(analysis.expenses)}</strong>
-                </div>
-              </div>
-              <ul className="legend">
-                {analysis.categoryTotals.slice(0, 4).map((item, index) => (
-                  <li key={item.category}>
-                    <span
-                      className="legend__swatch"
-                      style={{ background: categoryColors[index] }}
-                    />
-                    <span>{item.category}</span>
-                    <strong>{money(item.amount)}</strong>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          </section>
+              </article>
 
-          <section className="lower-grid">
-            <article className="panel transactions-panel" id="transactions">
-              <div className="panel__heading">
-                <div>
-                  <span className="panel__kicker"><FileSpreadsheet size={15} /> Activity</span>
-                  <h2>Recent transactions</h2>
+              <article className="panel">
+                <div className="panel__heading">
+                  <div>
+                    <span className="panel__kicker">
+                      <SlidersHorizontal size={15} /> Breakdown
+                    </span>
+                    <h2>Expenses by type</h2>
+                  </div>
                 </div>
-                <button className="text-button">View all <ArrowUpRight size={15} /></button>
-              </div>
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Description</th>
-                      <th>Category</th>
-                      <th>Amount</th>
-                      <th><span className="visually-hidden">Actions</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.slice(0, 6).map((transaction) => (
-                      <TransactionRow key={transaction.id} transaction={transaction} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </article>
+                <div className="donut-wrap">
+                  <ReactECharts
+                    option={categoryOption}
+                    style={{ height: 205, width: 205 }}
+                    opts={{ renderer: "svg" }}
+                  />
+                  <div className="donut-total">
+                    <small>Total</small>
+                    <strong>{money(analysis.expenses)}</strong>
+                  </div>
+                </div>
+                <ul className="legend">
+                  {analysis.categoryTotals.slice(0, 4).map((item, index) => (
+                    <li key={item.category}>
+                      <span
+                        className="legend__swatch"
+                        style={{ background: categoryColors[index] }}
+                      />
+                      <span>{item.category}</span>
+                      <strong>{money(item.amount)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </section>
 
-            <aside className="review-card">
-              <span className="review-card__icon"><Sparkles size={21} /></span>
-              <span className="panel__kicker">Review queue</span>
-              <h2>Almost ready to report</h2>
-              <p>
-                {transactionLabel(analysis.uncategorizedCount)}{" "}
-                {analysis.uncategorizedCount === 1 ? "needs" : "need"} a category
-                before your totals are complete.
-              </p>
-              <div className="review-progress">
-                <span
-                  style={{
-                    width: `${
-                      transactions.length === 0
-                        ? 0
-                        : (analysis.categorizedCount / transactions.length) * 100
-                    }%`,
-                  }}
-                />
-              </div>
-              <div className="review-stats">
-                <span><strong>{analysis.categorizedCount}</strong> categorized</span>
-                <span><strong>{analysis.uncategorizedCount}</strong> to review</span>
-              </div>
-              <button className="button button--light">
-                Review transactions <ArrowUpRight size={16} />
-              </button>
-            </aside>
-          </section>
-        </div>
+            <section className="lower-grid">
+              <article className="panel transactions-panel" id="transactions">
+                <div className="panel__heading">
+                  <div>
+                    <span className="panel__kicker">
+                      <FileSpreadsheet size={15} /> Activity
+                    </span>
+                    <h2>Recent transactions</h2>
+                  </div>
+                  <button className="text-button" onClick={() => setActivePage("bills")}>
+                    Review all <ArrowUpRight size={15} />
+                  </button>
+                </div>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Transaction type</th>
+                        <th>Amount</th>
+                        <th>
+                          <span className="visually-hidden">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.slice(0, 6).map((transaction) => (
+                        <TransactionRow key={transaction.id} transaction={transaction} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </article>
+
+              <aside className="review-card">
+                <span className="review-card__icon">
+                  <Sparkles size={21} />
+                </span>
+                <span className="panel__kicker">Visual check</span>
+                <h2>Verify before filing</h2>
+                <p>
+                  {transactionLabel(analysis.uncategorizedCount)}{" "}
+                  {analysis.uncategorizedCount === 1 ? "needs" : "need"} a transaction
+                  type before your totals are complete.
+                </p>
+                <div className="review-progress">
+                  <span
+                    style={{
+                      width: `${
+                        transactions.length === 0
+                          ? 0
+                          : (analysis.categorizedCount / transactions.length) * 100
+                      }%`,
+                    }}
+                  />
+                </div>
+                <div className="review-stats">
+                  <span>
+                    <strong>{analysis.categorizedCount}</strong> matched
+                  </span>
+                  <span>
+                    <strong>{analysis.uncategorizedCount}</strong> to review
+                  </span>
+                </div>
+                <button className="button button--light" onClick={() => setActivePage("bills")}>
+                  Review bills <ArrowUpRight size={16} />
+                </button>
+              </aside>
+            </section>
+          </div>
+        )}
       </main>
+
+      <ConfigDialog
+        open={configOpen}
+        config={envelope.config}
+        envelope={envelope}
+        onClose={() => setConfigOpen(false)}
+        onSave={saveConfiguration}
+        onImport={importConfiguration}
+        onExport={exportConfiguration}
+        onRestore={restoreConfiguration}
+      />
     </div>
   );
 }

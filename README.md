@@ -15,18 +15,23 @@ domain layer, a Tauri desktop shell, and a React dashboard.
 
 ## Current milestone
 
-The initial vertical slice includes:
+The current preview includes:
 
 - CSV import with header aliases and support for Tax Helper's four-column format
 - Exact decimal arithmetic for transaction and summary amounts
-- Conservative, explainable starter categorization rules
+- The original Tax Helper presets, recovered from the Racket source
+- Ordered, explainable text and regular-expression matching
+- An annual roll-up plus a transaction-by-transaction view for every type
+- A visual warning when an expected bill has no matches
+- An editor for adding, changing, disabling, and deleting transaction types
+- Versioned `.conf` import, export, and local persistence
 - Income, expense, net, monthly, and expense-category summaries
 - A desktop dashboard with interactive charts and a review queue
 - Synthetic demo data, unit tests, and continuous integration
 
-CSV data is currently processed in memory. Workspace persistence, editable
-categories and rules, reconciliation, exports, and signed installers are
-planned next.
+CSV data is currently processed in memory. Durable year workspaces,
+reconciliation, report exports, and commercially signed installers are planned
+next.
 
 ## Technology
 
@@ -74,6 +79,39 @@ cargo test -p tax-assistant-core
 To try the importer, select
 [`fixtures/sample-transactions.csv`](fixtures/sample-transactions.csv) from the
 dashboard's **Import CSV** button while running the desktop app.
+
+## Review bills and income
+
+After importing a CSV, open **Bills & income**:
+
+- **All bills** is the annual roll-up from the original application.
+- Each transaction-type tab shows every matched bank transaction and its total.
+- **Unmatched** keeps new or changed bank descriptions visible.
+- A zero beside an expected type is deliberate: it warns that a bank may have
+  changed the description and the preset should be reviewed.
+
+Open **Transaction types** to add, edit, disable, or delete definitions.
+Definitions may contain several case-insensitive text patterns or regular
+expressions. Types are evaluated in list order and the first enabled match wins.
+The claim percentage supports adjustments such as the original Rogers 50%
+calculation.
+
+## Configuration and portable copies
+
+Tax Assistant saves its active configuration as human-readable, versioned JSON
+in a file named `tax-assistant.conf`. Use **Export .conf** to keep a copy beside
+an installer on a USB stick, and **Import .conf** to restore it later.
+
+The normal editable copy lives in the operating system's per-user application
+configuration folder, because installed application folders are often
+read-only. Portable lookup is also supported: if `tax-assistant.conf` already
+exists beside the Windows executable, or beside the `.app` in its containing
+folder on macOS, Tax Assistant loads and updates that file instead.
+
+GitHub's **Release desktop installers** workflow builds Windows x64, macOS Apple
+silicon, and macOS Intel packages. It also attaches a default
+`tax-assistant.conf` containing the recovered presets. Preview packages are
+currently unsigned or ad-hoc signed and may trigger an operating-system warning.
 
 ## CSV format
 

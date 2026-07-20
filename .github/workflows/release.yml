@@ -1,0 +1,84 @@
+name: Release desktop installers
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS Apple silicon
+            platform: macos-latest
+            args: --target aarch64-apple-darwin
+            rust_targets: aarch64-apple-darwin
+            upload_config: false
+          - label: macOS Intel
+            platform: macos-latest
+            args: --target x86_64-apple-darwin
+            rust_targets: x86_64-apple-darwin
+            upload_config: false
+          - label: Windows x64
+            platform: windows-latest
+            args: ""
+            rust_targets: ""
+            upload_config: true
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - uses: swatinem/rust-cache@v2
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build and publish installer
+        id: tauri
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: tax-assistant-v__VERSION__
+          releaseName: Tax Assistant v__VERSION__
+          releaseBody: |
+            Preview release of Tax Assistant for Windows and macOS.
+
+            Download `tax-assistant.conf` with the installer if you want an
+            archival copy of the original Tax Helper presets. You can import or
+            export `.conf` files from Transaction types.
+
+            These preview installers are not yet notarized or commercially
+            code-signed, so the operating system may display a security warning.
+          releaseDraft: false
+          prerelease: true
+          generateReleaseNotes: true
+          retryAttempts: 2
+          args: ${{ matrix.args }}
+
+      - name: Upload default portable configuration
+        if: matrix.upload_config
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cargo run -p tax-assistant-core --example export-default-config -- tax-assistant.conf
+          gh release upload "tax-assistant-v${{ steps.tauri.outputs.appVersion }}" tax-assistant.conf --clobber

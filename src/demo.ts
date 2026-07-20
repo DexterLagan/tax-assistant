@@ -1,4 +1,5 @@
 import type { ImportResult, Transaction } from "./types";
+import { buildFallbackBillBook, fallbackConfig } from "./fallbackConfig";
 
 const transactions: Transaction[] = [
   {
@@ -132,5 +133,6 @@ export const demoResult: ImportResult = {
       { month: "2025-06", income: "0", expenses: "18.50" },
     ],
   },
+  billBook: buildFallbackBillBook(transactions, fallbackConfig),
   issues: [],
 };

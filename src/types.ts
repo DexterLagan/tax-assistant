@@ -36,5 +36,46 @@ export interface Analysis {
 export interface ImportResult {
   transactions: Transaction[];
   analysis: Analysis;
+  billBook: BillBook;
   issues: Array<{ row: number; message: string }>;
+}
+
+export type MatchMode = "contains" | "regex";
+
+export interface TransactionType {
+  id: string;
+  name: string;
+  patterns: string[];
+  matchMode: MatchMode;
+  direction: TransactionKind | null;
+  minimumAmount: string | null;
+  claimPercentage: number;
+  enabled: boolean;
+  showInSummary: boolean;
+  color: string;
+}
+
+export interface AppConfig {
+  schemaVersion: number;
+  transactionTypes: TransactionType[];
+}
+
+export interface TransactionTypeSummary {
+  transactionType: TransactionType;
+  total: string;
+  claimTotal: string;
+  transactionCount: number;
+  transactions: Transaction[];
+}
+
+export interface BillBook {
+  summaries: TransactionTypeSummary[];
+  unmatched: Transaction[];
+}
+
+export interface ConfigEnvelope {
+  config: AppConfig;
+  source: string;
+  path: string | null;
+  portable: boolean;
 }

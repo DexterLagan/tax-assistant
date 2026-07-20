@@ -23,6 +23,8 @@ pub enum ImportError {
     InvalidRow { row: usize, message: String },
     #[error("could not read CSV data: {0}")]
     Csv(#[from] csv::Error),
+    #[error("configuration error: {0}")]
+    Configuration(String),
 }
 
 #[derive(Clone, Copy)]
@@ -45,7 +47,7 @@ fn normalize_header(value: &str) -> String {
         .trim()
         .to_lowercase()
         .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
+        .filter(char::is_ascii_alphanumeric)
         .collect()
 }
 
@@ -167,6 +169,12 @@ const fn kind_label(kind: TransactionKind) -> &'static str {
     }
 }
 
+/// Imports supported bank CSV text into normalized transactions.
+///
+/// # Errors
+///
+/// Returns an [`ImportError`] when the input is empty, required columns are
+/// absent, a row is malformed, or a date or amount cannot be interpreted.
 pub fn import_csv(csv_text: &str) -> Result<Vec<Transaction>, ImportError> {
     if csv_text.trim().is_empty() {
         return Err(ImportError::Empty);
