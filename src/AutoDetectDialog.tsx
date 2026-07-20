@@ -85,9 +85,12 @@ export default function AutoDetectDialog({
     selectedIds.has(item.transactionType.id),
   ).length;
   const filtered = query.trim().length > 0;
+  const selectedToApply = filtered
+    ? visibleDetections.filter((item) => selectedIds.has(item.transactionType.id))
+    : selected;
   const typesToCreate = clearExisting
-    ? selected.length
-    : selected.filter((item) => !item.existingType).length;
+    ? selectedToApply.length
+    : selectedToApply.filter((item) => !item.existingType).length;
   const typeCountLabel = `${typesToCreate} ${
     typesToCreate === 1 ? "transaction type" : "transaction types"
   }`;
@@ -217,7 +220,8 @@ export default function AutoDetectDialog({
                     <strong>
                       {visibleSelectedCount} of {visibleDetections.length}
                     </strong>{" "}
-                    shown selected · {selected.length} overall
+                    shown selected ·{" "}
+                    <strong>{selectedToApply.length} will be imported</strong>
                   </>
                 ) : (
                   <>
@@ -330,11 +334,17 @@ export default function AutoDetectDialog({
               </button>
               <button
                 className="button button--primary"
-                onClick={() => onApply(selected, clearExisting)}
-                disabled={busy || selected.length === 0}
+                onClick={() => onApply(selectedToApply, clearExisting)}
+                disabled={busy || selectedToApply.length === 0}
               >
                 <Sparkles size={15} />
-                {busy ? "Applying…" : "Apply and open dashboard"}
+                {busy
+                  ? "Applying…"
+                  : filtered
+                    ? `Apply ${selectedToApply.length} shown ${
+                        selectedToApply.length === 1 ? "type" : "types"
+                      }`
+                    : "Apply and open dashboard"}
               </button>
             </footer>
           </>

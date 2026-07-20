@@ -100,7 +100,8 @@ matching pattern. Short numbers remain part of the name.
 
 Filtering the review changes the visible selection count. While a filter is
 active, **Select shown** and **Deselect shown** affect only the matching rows;
-the overall selected count remains visible beside it.
+only visible checked rows are imported when **Apply** is chosen. Clear the
+filter before applying when selections across the entire list should be used.
 
 Use **Auto-detect types** in the sidebar to repeat the review for the current
 CSV. The **Clear all** action in Transaction types empties the configuration
