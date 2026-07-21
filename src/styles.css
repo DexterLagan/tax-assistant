@@ -480,6 +480,11 @@ kbd {
   margin-top: 14px;
 }
 
+.chart-grid > .panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .panel {
   padding: 18px 19px;
 }

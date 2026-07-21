@@ -185,14 +185,36 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    let resizeFrame = 0;
+
+    function resizeChartsAfterLayout() {
+      if (!active) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = window.requestAnimationFrame(() => {
+          if (active) window.dispatchEvent(new Event("resize"));
+        });
+      });
+    }
+
     window.localStorage.setItem("tax-assistant-zoom", String(zoom));
     if (isTauri()) {
-      getCurrentWebview().setZoom(zoom).catch(() => {
-        document.body.style.setProperty("zoom", String(zoom));
-      });
+      getCurrentWebview()
+        .setZoom(zoom)
+        .then(resizeChartsAfterLayout)
+        .catch(() => {
+          document.body.style.setProperty("zoom", String(zoom));
+          resizeChartsAfterLayout();
+        });
     } else {
       document.body.style.setProperty("zoom", String(zoom));
+      resizeChartsAfterLayout();
     }
+
+    return () => {
+      active = false;
+      window.cancelAnimationFrame(resizeFrame);
+    };
   }, [zoom]);
 
   useEffect(() => {

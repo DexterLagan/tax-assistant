@@ -3,7 +3,7 @@ members = ["crates/tax-assistant-core", "src-tauri"]
 resolver = "3"
 
 [workspace.package]
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 license = "MIT"
 authors = ["Dexter Lagan"]
