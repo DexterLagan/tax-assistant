@@ -62,9 +62,11 @@ jobs:
           releaseBody: |
             Preview release of Tax Assistant for Windows and macOS.
 
-            Download `tax-assistant.conf` with the installer if you want an
-            archival copy of the original Tax Helper presets. You can import or
-            export `.conf` files from Transaction types.
+            `README.md` is the user guide and explains installation, first use,
+            CSV formats, auto-detection, and portable configuration. Download
+            `sample-transactions.csv` to try the importer without real banking
+            data. Download `tax-assistant.conf` with the installer if you want
+            an archival copy of the original Tax Helper presets.
 
             These preview installers are not yet notarized or commercially
             code-signed, so the operating system may display a security warning.
@@ -74,11 +76,11 @@ jobs:
           retryAttempts: 2
           args: ${{ matrix.args }}
 
-      - name: Upload default portable configuration
+      - name: Upload guide, sample CSV, and default portable configuration
         if: matrix.upload_config
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cargo run -p tax-assistant-core --example export-default-config -- tax-assistant.conf
-          gh release upload "tax-assistant-v${{ steps.tauri.outputs.appVersion }}" tax-assistant.conf --clobber
+          gh release upload "tax-assistant-v${{ steps.tauri.outputs.appVersion }}" tax-assistant.conf README.md fixtures/sample-transactions.csv --clobber

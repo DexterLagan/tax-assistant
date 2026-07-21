@@ -34,6 +34,29 @@ CSV data is currently processed in memory. Durable year workspaces,
 reconciliation, report exports, and commercially signed installers are planned
 next.
 
+## Install and first use
+
+Download the installer for your computer from the
+[latest GitHub release](https://github.com/DexterLagan/tax-assistant/releases/latest):
+
+- **Windows x64:** use the `.msi` or `-setup.exe` installer.
+- **Mac with Apple silicon:** use the `aarch64.dmg` package.
+- **Mac with an Intel processor:** use the `x64.dmg` package.
+
+The preview packages are not yet commercially signed or notarized, so Windows
+or macOS may ask you to confirm that you trust the download. Once installed:
+
+1. Select **Import CSV** and choose a banking transaction export.
+2. Choose whether to review auto-detected transaction types.
+3. Check the annual roll-up in **Bills & income** or **Annual totals**.
+4. Open **Transaction types** to refine the matching rules and save them.
+
+The bundled presets are based on the original Tax Helper application. They are
+only a starting point: bank descriptions change, so review the matched rows and
+the **Unmatched** tab before using any total. The **Help** item in the sidebar
+opens this guide inside the app; its search box can find a feature, CSV field,
+or keyboard shortcut.
+
 ## Technology
 
 - **Core:** Rust 2024, `rust_decimal`, `chrono`, and `csv`
@@ -162,9 +185,30 @@ The importer recognizes common aliases for these fields:
 | Debit | `Debit`, `Debit Amount`, `Withdrawal`, `Withdrawals` |
 | Credit | `Credit`, `Credit Amount`, `Deposit`, `Deposits` |
 
+For example:
+
+```csv
+Date,Description,Debit,Credit
+2025-01-15,HYDRO OTTAWA,146.22,
+2025-01-31,CLIENT PAYMENT,,1250.00
+2025-02-04,"OFFICE SUPPLY STORE, OTTAWA",42.18,
+```
+
+Each row needs a date and description. Put expenses or withdrawals in the debit
+column and income or deposits in the credit column; normally only one amount is
+filled on a row. Blank amount cells are accepted. Descriptions containing a
+comma must be enclosed in double quotes, as in the third example row.
+
+Amounts may contain a dollar sign, thousands separators, surrounding spaces,
+or accounting parentheses. Tax Assistant compares and totals their absolute
+values, using the debit or credit column to determine direction.
+
 It also accepts a headerless `date,description,debit,credit` file. Supported
 date formats currently include `YYYY-MM-DD`, `YYYY/MM/DD`, `MM/DD/YYYY`, and
-`DD-MM-YYYY`.
+`DD-MM-YYYY`. A synthetic example is included at
+[`fixtures/sample-transactions.csv`](fixtures/sample-transactions.csv) and is
+attached to each release so the importer can be tested without real banking
+data.
 
 ## Direction
 

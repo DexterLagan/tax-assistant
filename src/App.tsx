@@ -8,6 +8,7 @@ import {
   BarChart3,
   BookOpenCheck,
   ChevronDown,
+  CircleHelp,
   CircleDollarSign,
   FileCheck2,
   FileSpreadsheet,
@@ -39,6 +40,7 @@ import AutoDetectDialog from "./AutoDetectDialog";
 import ConfigDialog from "./ConfigDialog";
 import { demoResult } from "./demo";
 import { fallbackConfig } from "./fallbackConfig";
+import HelpDialog from "./HelpDialog";
 import type {
   AppConfig,
   ConfigEnvelope,
@@ -153,6 +155,7 @@ export default function App() {
   const [isImporting, setIsImporting] = useState(false);
   const [activePage, setActivePage] = useState<"overview" | "bills">("overview");
   const [configOpen, setConfigOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [detections, setDetections] = useState<DetectedTransactionType[]>([]);
   const [detectInitialStep, setDetectInitialStep] = useState<"prompt" | "review">(
@@ -211,6 +214,18 @@ export default function App() {
     window.addEventListener("keydown", handleZoomShortcut);
     return () => window.removeEventListener("keydown", handleZoomShortcut);
   }, [changeZoom]);
+
+  useEffect(() => {
+    function handleHelpShortcut(event: KeyboardEvent) {
+      if (event.key === "F1") {
+        event.preventDefault();
+        setHelpOpen(true);
+      }
+    }
+
+    window.addEventListener("keydown", handleHelpShortcut);
+    return () => window.removeEventListener("keydown", handleHelpShortcut);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -571,6 +586,13 @@ export default function App() {
               <small>Your data and patterns stay on this device</small>
             </span>
           </div>
+          <button
+            className="nav-link"
+            onClick={() => setHelpOpen(true)}
+            title="Open the user guide (F1)"
+          >
+            <CircleHelp size={18} /> Help
+          </button>
           <button className="nav-link" onClick={() => setConfigOpen(true)}>
             <Settings size={18} /> Configuration
           </button>
@@ -805,6 +827,7 @@ export default function App() {
         onExport={exportConfiguration}
         onRestore={restoreConfiguration}
       />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
       <AutoDetectDialog
         open={pendingImport !== null}
         fileName={pendingImport?.fileName ?? ""}
