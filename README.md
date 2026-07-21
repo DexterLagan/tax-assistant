@@ -13,6 +13,8 @@ domain layer, a Tauri desktop shell, and a React dashboard.
 > Tax Assistant is an organizational tool, not tax or accounting advice. Verify
 > classifications and totals against source documents and current CRA guidance.
 
+![Tax Assistant financial overview dashboard](docs/images/tax-assistant-dashboard.jpg)
+
 ## Current milestone
 
 The current preview includes:

@@ -1404,6 +1404,15 @@ tbody tr:hover {
   text-underline-offset: 2px;
 }
 
+.help-document img {
+  display: block;
+  width: 100%;
+  margin: 18px 0 22px;
+  border: 1px solid #e0e4df;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(39, 55, 47, 0.09);
+}
+
 .help-document code {
   padding: 1px 4px;
   border-radius: 4px;

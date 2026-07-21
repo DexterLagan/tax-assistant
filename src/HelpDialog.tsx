@@ -2,6 +2,7 @@ import { BookOpen, Search, X } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import readme from "../README.md?raw";
+import dashboardScreenshot from "../docs/images/tax-assistant-dashboard.jpg";
 
 interface HelpDialogProps {
   open: boolean;
@@ -68,7 +69,7 @@ function highlight(text: string, query: string, key: string): ReactNode[] {
 }
 
 function renderInline(text: string, query: string, key: string): ReactNode[] {
-  const token = /(\[([^\]]+)\]\(([^)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*)/g;
+  const token = /(!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*)/g;
   const nodes: ReactNode[] = [];
   let cursor = 0;
   let match: RegExpExecArray | null;
@@ -78,22 +79,30 @@ function renderInline(text: string, query: string, key: string): ReactNode[] {
       nodes.push(...highlight(text.slice(cursor, match.index), query, `${key}-text-${cursor}`));
     }
 
-    if (match[2] && match[3]) {
+    if (match[2] !== undefined && match[3]) {
+      const source =
+        match[3] === "docs/images/tax-assistant-dashboard.jpg"
+          ? dashboardScreenshot
+          : match[3];
       nodes.push(
-        <a key={`${key}-link-${match.index}`} href={match[3]} target="_blank" rel="noreferrer">
-          {highlight(match[2], query, `${key}-link-label-${match.index}`)}
+        <img key={`${key}-image-${match.index}`} src={source} alt={match[2]} />,
+      );
+    } else if (match[4] && match[5]) {
+      nodes.push(
+        <a key={`${key}-link-${match.index}`} href={match[5]} target="_blank" rel="noreferrer">
+          {highlight(match[4], query, `${key}-link-label-${match.index}`)}
         </a>,
       );
-    } else if (match[4]) {
+    } else if (match[6]) {
       nodes.push(
         <code key={`${key}-code-${match.index}`}>
-          {highlight(match[4], query, `${key}-code-text-${match.index}`)}
+          {highlight(match[6], query, `${key}-code-text-${match.index}`)}
         </code>,
       );
-    } else if (match[5]) {
+    } else if (match[7]) {
       nodes.push(
         <strong key={`${key}-strong-${match.index}`}>
-          {highlight(match[5], query, `${key}-strong-text-${match.index}`)}
+          {highlight(match[7], query, `${key}-strong-text-${match.index}`)}
         </strong>,
       );
     }
